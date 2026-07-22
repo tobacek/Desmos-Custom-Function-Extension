@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Desmos Custom Functions",
   "version": "1.0",
-  "description": "Integrate custom functions into Desmos using JavaScript and GLSL.",
+  "description": "Integrate custom functions into Desmos using JavaScript.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://*.desmos.com/*"
