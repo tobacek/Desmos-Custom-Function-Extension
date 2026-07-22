@@ -78,7 +78,6 @@
     let originalScriptPromise = null;
     let resolvedCustomFunctions = null;
     let resolvedSharedJS = "";
-    let resolvedSharedGLSL = "";
     let configLoaded = false;
     const pendingChunks = [];
 
@@ -92,11 +91,9 @@
             const activeFuncs = (event.data.funcs || []).filter(fn => fn.enabled !== false);
             resolvedCustomFunctions = activeFuncs;
             resolvedSharedJS = event.data.sharedJS || "";
-            resolvedSharedGLSL = event.data.sharedGLSL || "";
             resolveFunctions({
                 funcs: activeFuncs,
-                sharedJS: resolvedSharedJS,
-                sharedGLSL: resolvedSharedGLSL
+                sharedJS: resolvedSharedJS
             });
         }
     });
@@ -157,14 +154,13 @@
         return code;
     }
 
-    function patchSourceText(patched, funcs, sharedJS, sharedGLSL) {
+    function patchSourceText(patched, funcs, sharedJS) {
         if (!funcs || funcs.length === 0) return patched;
         
         if (patched.includes('_dcg_unwrap')) {
             return patched;
         }
 
-        // Dynamic type identification derived from Desmos's own untouched built-in functions
         let type_I = "I";
         let type_L = "L";
         let type_O = "O";
@@ -172,37 +168,31 @@
         let type_St = "St";
         let type__r = "_r";
 
-        // Derive type I (number) from 'hypot'
         const hypotMatch = patched.match(/hypot\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1hypot\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*,\s*\2\s*\]/);
         if (hypotMatch) {
             type_I = hypotMatch[2];
         }
 
-        // Derive type L (complex) from 'complexFloor'
         const complexFloorMatch = patched.match(/complexFloor\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1complexFloor\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (complexFloorMatch) {
             type_L = complexFloorMatch[2];
         }
 
-        // Derive type O (point) from 'distance'
         const distanceMatch = patched.match(/distance\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1distance\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*,\s*\2\s*\]/);
         if (distanceMatch) {
             type_O = distanceMatch[2];
         }
 
-        // Derive type me (number list) from 'rowMatrix'
         const rowMatrixMatch = patched.match(/rowMatrix\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1rowMatrix\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (rowMatrixMatch) {
             type_me = rowMatrixMatch[2];
         }
 
-        // Derive type St (complex list) from 'complexGCD'
         const complexGCDMatch = patched.match(/complexGCD\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1complexListGCD\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (complexGCDMatch) {
             type_St = complexGCDMatch[2];
         }
 
-        // Derive type _r (point list) from 'polygon'
         const polygonMatch = patched.match(/polygon\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1polygon\1\s*,\s*\{\s*tag\s*:\s*['"\\\\]*reducer['"\\\\]*\s*,\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (polygonMatch) {
             type__r = polygonMatch[2];
@@ -236,7 +226,6 @@
                 const mappedReturnType = typeMapping[returnType] || returnType;
                 const argTypesStr = mappedInputTypes.join(",");
                 
-                // Protects all list types (me, St, _r) from being broadcast/decomposed
                 const hasList = inputTypes.includes("me") || inputTypes.includes("St") || inputTypes.includes("_r");
                 const listTags = hasList ? `,tag:${quotes}never-broadcast${quotes},noPeel:!0` : "";
                 
@@ -248,7 +237,6 @@
                 new RegExp(searchPattern),
                 `var ${mnVar}={${mnInjections}sin:${AVar}(${quotes}BuiltIn${quotes},${quotes}sin${quotes}`
             );
-            console.log(`[Desmos Extension] Token mapping (${mnVar}) dynamically patched with broadcasting protection.`);
         }
 
         // 2. Patch evaluator mapping
@@ -265,7 +253,6 @@
                 new RegExp(`var\\s+${riVar}\\s*=\\s*\\{\\s*\\};${paVar}\\s*\\(\\s*${riVar}\\s*,\\s*\\{\\s*IBuiltIn:`),
                 `var ${riVar}={};${paVar}(${riVar},{${riInjections}IBuiltIn:`
             );
-            console.log(`[Desmos Extension] Evaluator mapping (${riVar}) patched.`);
         }
 
         // 3. Patch derivative rules
@@ -290,61 +277,6 @@
                 new RegExp(`(var|let|const)\\s+${yieVar}\\s*=\\s*\\{\\s*exp\\s*:`),
                 `$1 ${yieVar}={${yieInjections}exp:`
             );
-            console.log(`[Desmos Extension] Derivative mapping (${yieVar}) patched.`);
-        }
-
-        // 4. Patch GLSL shader mapping
-        const mneMatch = patched.match(/var\s+([a-zA-Z0-9_$]+)\s*=\s*\{\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*elementsAt:\s*[a-zA-Z0-9_$]+\s*\}/);
-        if (mneMatch) {
-            const mneVar = mneMatch[1];
-            patched = patched.replace(
-                new RegExp(`var\\s+${mneVar}\\s*=\\s*\\{`),
-                (match) => {
-                    const isEscaped = match.includes('\\"');
-                    const q = isEscaped ? '\\"' : '"';
-                    
-                    let sharedGLSLCompiled = sharedGLSL || "";
-                    if (isEscaped) {
-                        sharedGLSLCompiled = sharedGLSLCompiled.replace(/"/g, '\\"').replace(/\n/g, '\\n');
-                    }
-                    
-                    let glslInjections = "";
-                    for (let fn of funcs) {
-                        if (fn.glslBody && fn.glslBody.trim() !== "") {
-                            const arity = fn.arity || 1;
-                            const inputTypes = fn.inputTypes || Array(arity).fill("I");
-                            const returnType = fn.returnType || "I";
-                            const paramNames = ["x", "y", "z"].slice(0, arity);
-                            
-                            const glslTypes = {
-                                "I": "float",
-                                "L": "vec2",
-                                "O": "vec2",
-                                "me": "float",
-                                "St": "vec2",
-                                "_r": "vec2"
-                            };
-                            
-                            const paramsStr = paramNames.map((p, idx) => {
-                                const type = inputTypes[idx] || "I";
-                                const glslType = glslTypes[type] || "float";
-                                return `${glslType} ${p}`;
-                            }).join(", ");
-                            
-                            const retGlslType = glslTypes[returnType] || "float";
-                            let fullGlsl = `${retGlslType} dcg_${fn.name}(${paramsStr}){\n${fn.glslBody}\n}`;
-                            
-                            let escapedGlsl = fullGlsl;
-                            if (isEscaped) {
-                                escapedGlsl = escapedGlsl.replace(/"/g, '\\"').replace(/\n/g, '\\n');
-                            }
-                            glslInjections += `${fn.name}:{type:${q}scalar${q},value:()=>${q}${sharedGLSLCompiled}\\n${escapedGlsl}${q}},`;
-                        }
-                    }
-                    return `var ${mneVar}={${glslInjections}`;
-                }
-            );
-            console.log(`[Desmos Extension] GLSL shader mapping (${mneVar}) patched.`);
         }
 
         let cJInjections = funcs.map(fn => `${fn.name}|${fn.name.replace(/([A-Z])/g, "-$1").toLowerCase()}`).join(" ");
@@ -376,7 +308,7 @@
         const args = argMatch[1];
         const body = argMatch[2];
         
-        const patchedBody = patchSourceText(body, funcs, resolvedSharedJS, resolvedSharedGLSL);
+        const patchedBody = patchSourceText(body, funcs, resolvedSharedJS);
         
         try {
             return new Function(args, patchedBody);
@@ -386,11 +318,6 @@
         }
     }
 
-    // Name-independent module detection. The anchors ("sin", "BuiltIn", "IBuiltIn")
-    // are intentionally identical to the string literals that mnMatch/riMatch in
-    // patchSourceText() already rely on (see above) — this function just checks
-    // for that same, already-validated structural core more loosely (without a
-    // fixed variable name), instead of inventing a new detection approach.
     function isTargetModule(moduleStr) {
         const hasTokenMap = /\{\s*sin\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1sin\1/.test(moduleStr);
         const hasEvalMap = /=\s*\{\s*\};[a-zA-Z0-9_$]+\s*\(\s*[a-zA-Z0-9_$]+\s*,\s*\{\s*IBuiltIn:/.test(moduleStr);
@@ -411,7 +338,6 @@
         return false;
     }
 
-    // 1. FETCH INTERCEPTOR (zero-network cache for DesModder)
     const originalFetch = window.fetch;
     window.fetch = async function (input, init) {
         const url = (typeof input === 'string') ? input : (input instanceof URL ? input.href : (input && input.url));
@@ -424,11 +350,10 @@
             console.log("[Desmos Extension] Intercepted fetch request from DesModder:", url);
             try {
                 const config = await customFunctionsPromise;
-                const hash = "fetch_" + hashCode(url + JSON.stringify(config.funcs) + config.sharedJS + config.sharedGLSL);
+                const hash = "fetch_" + hashCode(url + JSON.stringify(config.funcs) + config.sharedJS);
                 
                 let patchedText = await getCachedScript(hash);
                 if (patchedText) {
-                    console.log("[Desmos Extension] Zero-network cache hit! Skipping download and patching.");
                     return new Response(patchedText, {
                         status: 200,
                         statusText: "OK",
@@ -436,12 +361,10 @@
                     });
                 }
                 
-                console.log("[Desmos Extension] Cache miss. Downloading original file once...");
                 const response = await originalFetch(input, init);
                 const text = await response.text();
                 
-                console.log("[Desmos Extension] Patching Desmos code...");
-                patchedText = patchSourceText(text, config.funcs, config.sharedJS, config.sharedGLSL);
+                patchedText = patchSourceText(text, config.funcs, config.sharedJS);
                 setCachedScript(hash, patchedText);
                 
                 return new Response(patchedText, {
@@ -457,7 +380,6 @@
         return originalFetch(input, init);
     };
 
-    // 2. STANDALONE INTERCEPTOR (zero-network cache, used when DesModder is inactive)
     const observer = new MutationObserver((mutations) => {
         if (isDesModderActive()) {
             return;
@@ -476,24 +398,19 @@
                     node.type = 'javascript/blocked';
                     node.remove();
 
-                    console.log('[Desmos Extension] Standalone script intercepted:', originalSrc);
-                    
                     customFunctionsPromise.then(async (config) => {
-                        const hash = "standalone_" + hashCode(originalSrc + JSON.stringify(config.funcs) + config.sharedJS + config.sharedGLSL);
+                        const hash = "standalone_" + hashCode(originalSrc + JSON.stringify(config.funcs) + config.sharedJS);
                         
                         let patchedText = await getCachedScript(hash);
                         if (patchedText) {
-                            console.log("[Desmos Extension] Zero-network cache hit! Skipping download.");
                             injectPatchedScript(patchedText);
                             return;
                         }
                         
-                        console.log("[Desmos Extension] Cache miss. Downloading...");
                         fetch(originalSrc)
                             .then(response => response.text())
                             .then(text => {
-                                console.log(`[Desmos Extension] Patching core...`);
-                                patchedText = patchSourceText(text, config.funcs, config.sharedJS, config.sharedGLSL);
+                                patchedText = patchSourceText(text, config.funcs, config.sharedJS);
                                 setCachedScript(hash, patchedText);
                                 injectPatchedScript(patchedText);
                             })
@@ -507,7 +424,6 @@
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
-    // 3. WEBPACK-HOOKS
     const hookedGlobals = new Set();
     function applyHook(arrayName) {
         if (hookedGlobals.has(arrayName)) return;
@@ -521,7 +437,6 @@
             const originalPush = arr.push;
             arr.push = function (chunk) {
                 if (!configLoaded) {
-                    console.log(`[Desmos Extension] Webpack chunk pushed before config loaded. Queuing...`);
                     pendingChunks.push({ arrayName, chunk, originalPush, context: this });
                     return;
                 }
@@ -532,8 +447,6 @@
                         for (let id in modules) {
                             const moduleStr = modules[id].toString();
                             if (isTargetModule(moduleStr)) {
-                                
-                                console.log(`[Desmos Extension] Webpack channel (${arrayName}): Module ${id} intercepted.`);
                                 modules[id] = patchModule(modules[id], resolvedCustomFunctions);
                             }
                         }
@@ -563,7 +476,6 @@
 
     customFunctionsPromise.then((config) => {
         configLoaded = true;
-        console.log(`[Desmos Extension] Config loaded. Processing ${pendingChunks.length} queued chunks...`);
         
         while (pendingChunks.length > 0) {
             const item = pendingChunks.shift();
@@ -575,8 +487,6 @@
                     for (let id in modules) {
                         const moduleStr = modules[id].toString();
                         if (isTargetModule(moduleStr)) {
-                            
-                            console.log(`[Desmos Extension] Webpack channel (${item.arrayName}): Delayed Module ${id} intercepted.`);
                             modules[id] = patchModule(modules[id], config.funcs);
                         }
                     }
@@ -589,17 +499,13 @@
         }
     });
 
-    // 4. WEB-WORKER OVERRIDE
     const originalBlob = window.Blob;
     window.Blob = function (parts, options) {
         if (options && options.type && options.type.includes('javascript')) {
             for (let i = 0; i < parts.length; i++) {
                 if (typeof parts[i] === 'string' && (parts[i].includes('__dcg_worker_module__') || isTargetModule(parts[i]))) {
-                    console.log('[Desmos Extension] Web worker blob creation patched.');
                     if (resolvedCustomFunctions) {
-                        parts[i] = patchSourceText(parts[i], resolvedCustomFunctions, resolvedSharedJS, resolvedSharedGLSL);
-                    } else {
-                        console.warn('[Desmos Extension] customFunctions not loaded yet!');
+                        parts[i] = patchSourceText(parts[i], resolvedCustomFunctions, resolvedSharedJS);
                     }
                 }
             }
