@@ -164,7 +164,7 @@
             return patched;
         }
 
-        // Dynamische Typen-Identifikation aus echten unberührten Desmos-Standardfunktionen
+        // Dynamic type identification derived from Desmos's own untouched built-in functions
         let type_I = "I";
         let type_L = "L";
         let type_O = "O";
@@ -172,37 +172,37 @@
         let type_St = "St";
         let type__r = "_r";
 
-        // Ableitung von Typ I (Zahl) aus 'hypot'
+        // Derive type I (number) from 'hypot'
         const hypotMatch = patched.match(/hypot\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1hypot\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*,\s*\2\s*\]/);
         if (hypotMatch) {
             type_I = hypotMatch[2];
         }
 
-        // Ableitung von Typ L (Komplex) aus 'complexFloor'
+        // Derive type L (complex) from 'complexFloor'
         const complexFloorMatch = patched.match(/complexFloor\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1complexFloor\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (complexFloorMatch) {
             type_L = complexFloorMatch[2];
         }
 
-        // Ableitung von Typ O (Punkt) aus 'distance'
+        // Derive type O (point) from 'distance'
         const distanceMatch = patched.match(/distance\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1distance\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*,\s*\2\s*\]/);
         if (distanceMatch) {
             type_O = distanceMatch[2];
         }
 
-        // Ableitung von Typ me (Zahlenliste) aus 'rowMatrix'
+        // Derive type me (number list) from 'rowMatrix'
         const rowMatrixMatch = patched.match(/rowMatrix\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1rowMatrix\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (rowMatrixMatch) {
             type_me = rowMatrixMatch[2];
         }
 
-        // Ableitung von Typ St (komplexe Liste) aus 'complexGCD'
+        // Derive type St (complex list) from 'complexGCD'
         const complexGCDMatch = patched.match(/complexGCD\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1complexListGCD\1\s*,\s*\{\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (complexGCDMatch) {
             type_St = complexGCDMatch[2];
         }
 
-        // Ableitung von Typ _r (Punktliste) aus 'polygon'
+        // Derive type _r (point list) from 'polygon'
         const polygonMatch = patched.match(/polygon\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1polygon\1\s*,\s*\{\s*tag\s*:\s*['"\\\\]*reducer['"\\\\]*\s*,\s*argumentTypes\s*:\s*\[\s*([a-zA-Z0-9_$]+)\s*\]/);
         if (polygonMatch) {
             type__r = polygonMatch[2];
@@ -219,7 +219,7 @@
 
         patched = generateJSImplementations(funcs, sharedJS) + "\n" + patched;
 
-        // 1. Patch Token-Mapping
+        // 1. Patch token mapping
         const mnMatch = patched.match(/var\s+([a-zA-Z0-9_$]+)\s*=\s*\{sin:\s*([a-zA-Z0-9_$]+)\s*\(\s*(['"\\\\]*)BuiltIn\3\s*,\s*\3sin\3/);
         if (mnMatch) {
             const mnVar = mnMatch[1];
@@ -236,7 +236,7 @@
                 const mappedReturnType = typeMapping[returnType] || returnType;
                 const argTypesStr = mappedInputTypes.join(",");
                 
-                // Schützt alle Listen (me, St, _r) vor dem Zerlegen
+                // Protects all list types (me, St, _r) from being broadcast/decomposed
                 const hasList = inputTypes.includes("me") || inputTypes.includes("St") || inputTypes.includes("_r");
                 const listTags = hasList ? `,tag:${quotes}never-broadcast${quotes},noPeel:!0` : "";
                 
@@ -251,7 +251,7 @@
             console.log(`[Desmos Extension] Token mapping (${mnVar}) dynamically patched with broadcasting protection.`);
         }
 
-        // 2. Patch Evaluator-Mapping
+        // 2. Patch evaluator mapping
         const riMatch = patched.match(/var\s+([a-zA-Z0-9_$]+)\s*=\s*\{\};([a-zA-Z0-9_$]+)\s*\(\s*\1\s*,\s*\{\s*IBuiltIn:/);
         if (riMatch) {
             const riVar = riMatch[1];
@@ -268,7 +268,7 @@
             console.log(`[Desmos Extension] Evaluator mapping (${riVar}) patched.`);
         }
 
-        // 3. Patch Ableitungs-Regeln
+        // 3. Patch derivative rules
         const yieMatch = patched.match(/(var|let|const)\s+([a-zA-Z0-9_$]+)\s*=\s*\{\s*exp\s*:\s*\[\s*(['"\\\\]*)q\*x_1\3\s*\]/);
         if (yieMatch) {
             const yieVar = yieMatch[2];
@@ -293,7 +293,7 @@
             console.log(`[Desmos Extension] Derivative mapping (${yieVar}) patched.`);
         }
 
-        // 4. Patch GLSL Shader-Mapping
+        // 4. Patch GLSL shader mapping
         const mneMatch = patched.match(/var\s+([a-zA-Z0-9_$]+)\s*=\s*\{\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*\.\.\.[a-zA-Z0-9_$]+\s*,\s*elementsAt:\s*[a-zA-Z0-9_$]+\s*\}/);
         if (mneMatch) {
             const mneVar = mneMatch[1];
@@ -386,11 +386,11 @@
         }
     }
 
-    // Namensunabhängige Modul-Erkennung. Die Anker ("sin","BuiltIn","IBuiltIn")
-    // sind bewusst identisch zu den String-Literalen, die mnMatch/riMatch in
-    // patchSourceText() bereits voraussetzen (siehe dort) — diese Funktion prüft
-    // also nur denselben, bereits validierten Strukturkern lockerer (ohne festen
-    // Variablennamen), statt eine neue Erkennungslogik zu erfinden.
+    // Name-independent module detection. The anchors ("sin", "BuiltIn", "IBuiltIn")
+    // are intentionally identical to the string literals that mnMatch/riMatch in
+    // patchSourceText() already rely on (see above) — this function just checks
+    // for that same, already-validated structural core more loosely (without a
+    // fixed variable name), instead of inventing a new detection approach.
     function isTargetModule(moduleStr) {
         const hasTokenMap = /\{\s*sin\s*:\s*[a-zA-Z0-9_$]+\s*\(\s*(['"\\\\]*)BuiltIn\1\s*,\s*\1sin\1/.test(moduleStr);
         const hasEvalMap = /=\s*\{\s*\};[a-zA-Z0-9_$]+\s*\(\s*[a-zA-Z0-9_$]+\s*,\s*\{\s*IBuiltIn:/.test(moduleStr);
@@ -411,7 +411,7 @@
         return false;
     }
 
-    // 1. FETCH INTERCEPTOR (Zero-Network-Cache für DesModder)
+    // 1. FETCH INTERCEPTOR (zero-network cache for DesModder)
     const originalFetch = window.fetch;
     window.fetch = async function (input, init) {
         const url = (typeof input === 'string') ? input : (input instanceof URL ? input.href : (input && input.url));
@@ -421,14 +421,14 @@
             url.includes('calculator_geometry') || 
             url.includes('calculator_3d')
         )) {
-            console.log("[Desmos Extension] Fetch-Request von DesModder abgefangen:", url);
+            console.log("[Desmos Extension] Intercepted fetch request from DesModder:", url);
             try {
                 const config = await customFunctionsPromise;
                 const hash = "fetch_" + hashCode(url + JSON.stringify(config.funcs) + config.sharedJS + config.sharedGLSL);
                 
                 let patchedText = await getCachedScript(hash);
                 if (patchedText) {
-                    console.log("[Desmos Extension] Zero-Network Cache Hit! Überspringe Download und Patching.");
+                    console.log("[Desmos Extension] Zero-network cache hit! Skipping download and patching.");
                     return new Response(patchedText, {
                         status: 200,
                         statusText: "OK",
@@ -436,11 +436,11 @@
                     });
                 }
                 
-                console.log("[Desmos Extension] Cache Miss. Downloade Original-Datei einmalig...");
+                console.log("[Desmos Extension] Cache miss. Downloading original file once...");
                 const response = await originalFetch(input, init);
                 const text = await response.text();
                 
-                console.log("[Desmos Extension] Patche Desmos-Code...");
+                console.log("[Desmos Extension] Patching Desmos code...");
                 patchedText = patchSourceText(text, config.funcs, config.sharedJS, config.sharedGLSL);
                 setCachedScript(hash, patchedText);
                 
@@ -450,14 +450,14 @@
                     headers: response.headers
                 });
             } catch(err) {
-                console.error("[Desmos Extension] Fehler im Interceptor:", err);
+                console.error("[Desmos Extension] Error in interceptor:", err);
                 throw err;
             }
         }
         return originalFetch(input, init);
     };
 
-    // 2. STANDALONE-INTERCEPTOR (Zero-Network-Cache, falls DesModder inaktiv ist)
+    // 2. STANDALONE INTERCEPTOR (zero-network cache, used when DesModder is inactive)
     const observer = new MutationObserver((mutations) => {
         if (isDesModderActive()) {
             return;
@@ -483,12 +483,12 @@
                         
                         let patchedText = await getCachedScript(hash);
                         if (patchedText) {
-                            console.log("[Desmos Extension] Zero-Network Cache Hit! Überspringe Download.");
+                            console.log("[Desmos Extension] Zero-network cache hit! Skipping download.");
                             injectPatchedScript(patchedText);
                             return;
                         }
                         
-                        console.log("[Desmos Extension] Cache Miss. Downloade...");
+                        console.log("[Desmos Extension] Cache miss. Downloading...");
                         fetch(originalSrc)
                             .then(response => response.text())
                             .then(text => {
@@ -498,7 +498,7 @@
                                 injectPatchedScript(patchedText);
                             })
                             .catch(err => {
-                                console.warn('[Desmos Extension] Standalone-Download fehlgeschlagen:', err.message);
+                                console.warn('[Desmos Extension] Standalone download failed:', err.message);
                             });
                     });
                 }
