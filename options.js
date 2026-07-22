@@ -3,9 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const fnArity = document.getElementById('fnArity');
     const fnReturnType = document.getElementById('fnReturnType');
     const fnJs = document.getElementById('fnJs');
-    const fnGlsl = document.getElementById('fnGlsl');
     const sharedJS = document.getElementById('sharedJS');
-    const sharedGLSL = document.getElementById('sharedGLSL');
     const addBtn = document.getElementById('addBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const saveLibsBtn = document.getElementById('saveLibsBtn');
@@ -21,8 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const initialSharedJS = ``;
 
-    const initialSharedGLSL = ``;
-
     const initialFunctions = [
     {
         "arity": 1,
@@ -30,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -44,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -58,7 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -72,7 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -86,7 +78,6 @@ document.addEventListener('DOMContentLoaded', () => {
             "x_1 * \\\\frac{q}{x(1+q)}"
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -100,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -114,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "L"
         ],
@@ -128,7 +117,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -142,7 +130,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -156,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -170,7 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "I"
         ],
@@ -184,7 +169,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "L"
         ],
@@ -198,7 +182,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "me"
         ],
@@ -213,7 +196,6 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "me",
             "I"
@@ -229,12 +211,11 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "St",
             "I"
         ],
-        "jsBody": "const N = Math.pow(2, y);\nconst L = x.length;\nlet densePoints;\n\nif (L < 2) {\n  densePoints = new Array(N).fill(0).map(() => (L === 1 ? [x[0][0], x[0][1]] : [0, 0]));\n} else {\n  densePoints = new Array(N);\n  \n  for (let i = 0; i < N; i++) {\n    // Determine fractional position across all vertices (0 to L)\n    const globalT = (i / N) * L;\n    \n    // Split into the segment index and the fractional progress along that segment\n    const segIdx = Math.floor(globalT) % L;\n    const t = globalT % 1;\n    \n    const p1 = x[segIdx];\n    const p2 = x[(segIdx + 1) % L];\n    \n    // Linearly interpolate coordinates directly based on index progress\n    densePoints[i] = [\n      p1[0] + (p2[0] - p1[0]) * t,\n      p1[1] + (p2[1] - p1[1]) * t\n    ];\n  }\n}\n\nconst re = new Float64Array(N);\nconst im = new Float64Array(N);\n\nfor (let i = 0; i < N; i++) {\n  re[i] = densePoints[i][0];\n  im[i] = densePoints[i][1];\n}\n\nlet j = 0;\nfor (let i = 0; i < N; i++) {\n  if (i < j) {\n    let tempRe = re[i], tempIm = im[i];\n    re[i] = re[j];\n    im[i] = im[j];\n    re[j] = tempRe;\n    im[j] = tempIm;\n  }\n  let bit = N >> 1;\n  while (bit <= j && bit > 0) {\n    j -= bit;\n    bit >>= 1;\n  }\n  j += bit;\n}\n\nfor (let len = 2; len <= N; len <<= 1) {\n  const angle = (-2 * Math.PI) / len;\n  const wlenRe = Math.cos(angle), wlenIm = Math.sin(angle);\n\n  for (let i = 0; i < N; i += len) {\n    let wRe = 1.0, wIm = 0.0;\n    const halfLen = len >> 1;\n\n    for (let k = 0; k < halfLen; k++) {\n      const uIdx = i + k, vIdx = i + k + halfLen;\n      const tRe = re[vIdx] * wRe - im[vIdx] * wIm;\n      const tIm = re[vIdx] * wIm + im[vIdx] * wRe;\n\n      re[vIdx] = re[uIdx] - tRe;\n      im[vIdx] = im[uIdx] - tIm;\n      re[uIdx] += tRe;\n      im[uIdx] += tIm;\n\n      const nextWRe = wRe * wlenRe - wIm * wlenIm;\n      wIm = wRe * wlenIm + wIm * wlenRe;\n      wRe = nextWRe;\n    }\n  }\n}\n\nconst fourier = new Array(N);\nfor (let k = 0; k < N; k++) {\n  let freq = k;\n  if (freq > N / 2) freq -= N;\n  fourier[k] = {\n    freq: freq,\n    amp: Math.sqrt(re[k] * re[k] + im[k] * im[k]) / N,\n    phase: Math.atan2(im[k], re[k])\n  };\n}\n\nfourier.sort((a, b) => {\n  const absA = Math.abs(a.freq);\n  const absB = Math.abs(b.freq);\n  if (absA !== absB) return absA - absB;\n  return b.freq - a.freq;\n});\n\nconst coefficientsAsPoints = new Array(N);\nfor (let i = 0; i < N; i++) {\n  const p = fourier[i];\n  coefficientsAsPoints[i] = [\n    p.amp * Math.cos(p.phase),\n    p.amp * Math.sin(p.phase)\n  ];\n}\n\nreturn coefficientsAsPoints;",
+        "jsBody": "const N = Math.pow(2, y);\nconst L = x.length;\nlet densePoints;\n\nif (L < 2) {\n  densePoints = new Array(N).fill(0).map(() => (L === 1 ? [x[0][0], x[0][1]] : [0, 0]));\n} else {\n  densePoints = new Array(N);\n  \n  for (let i = 0; i < N; i++) {\n    const globalT = (i / N) * L;\n    const segIdx = Math.floor(globalT) % L;\n    const t = globalT % 1;\n    const p1 = x[segIdx];\n    const p2 = x[(segIdx + 1) % L];\n    densePoints[i] = [\n      p1[0] + (p2[0] - p1[0]) * t,\n      p1[1] + (p2[1] - p1[1]) * t\n    ];\n  }\n}\n\nconst re = new Float64Array(N);\nconst im = new Float64Array(N);\n\nfor (let i = 0; i < N; i++) {\n  re[i] = densePoints[i][0];\n  im[i] = densePoints[i][1];\n}\n\nlet j = 0;\nfor (let i = 0; i < N; i++) {\n  if (i < j) {\n    let tempRe = re[i], tempIm = im[i];\n    re[i] = re[j];\n    im[i] = im[j];\n    re[j] = tempRe;\n    im[j] = tempIm;\n  }\n  let bit = N >> 1;\n  while (bit <= j && bit > 0) {\n    j -= bit;\n    bit >>= 1;\n  }\n  j += bit;\n}\n\nfor (let len = 2; len <= N; len <<= 1) {\n  const angle = (-2 * Math.PI) / len;\n  const wlenRe = Math.cos(angle), wlenIm = Math.sin(angle);\n\n  for (let i = 0; i < N; i += len) {\n    let wRe = 1.0, wIm = 0.0;\n    const halfLen = len >> 1;\n\n    for (let k = 0; k < halfLen; k++) {\n      const uIdx = i + k, vIdx = i + k + halfLen;\n      const tRe = re[vIdx] * wRe - im[vIdx] * wIm;\n      const tIm = re[vIdx] * wIm + im[vIdx] * wRe;\n\n      re[vIdx] = re[uIdx] - tRe;\n      im[vIdx] = im[uIdx] - tIm;\n      re[uIdx] += tRe;\n      im[uIdx] += tIm;\n\n      const nextWRe = wRe * wlenRe - wIm * wlenIm;\n      wIm = wRe * wlenIm + wIm * wlenRe;\n      wRe = nextWRe;\n    }\n  }\n}\n\nconst fourier = new Array(N);\nfor (let k = 0; k < N; k++) {\n  let freq = k;\n  if (freq > N / 2) freq -= N;\n  fourier[k] = {\n    freq: freq,\n    amp: Math.sqrt(re[k] * re[k] + im[k] * im[k]) / N,\n    phase: Math.atan2(im[k], re[k])\n  };\n}\n\nfourier.sort((a, b) => {\n  const absA = Math.abs(a.freq);\n  const absB = Math.abs(b.freq);\n  if (absA !== absB) return absA - absB;\n  return b.freq - a.freq;\n});\n\nconst coefficientsAsPoints = new Array(N);\nfor (let i = 0; i < N; i++) {\n  const p = fourier[i];\n  coefficientsAsPoints[i] = [\n    p.amp * Math.cos(p.phase),\n    p.amp * Math.sin(p.phase)\n  ];\n}\n\nreturn coefficientsAsPoints;",
         "name": "fouriercoeffs",
         "returnType": "St"
     },
@@ -244,13 +225,29 @@ document.addEventListener('DOMContentLoaded', () => {
             ""
         ],
         "enabled": true,
-        "glslBody": "",
         "inputTypes": [
             "me"
         ],
         "jsBody": "const len = x.length;\nif (len === 0) return [];\nconst result = new Array(len);\nresult[0] = x[0];\nfor (let i = 1; i < len; i++) {\n  result[i] = result[i - 1] + x[i];\n}\nreturn result;",
         "name": "prefsum",
         "returnType": "me"
+    },
+    {
+        "arity": 3,
+        "derivatives": [
+            "",
+            "",
+            ""
+        ],
+        "enabled": true,
+        "inputTypes": [
+            "I",
+            "I",
+            "I"
+        ],
+        "jsBody": "let angle = z * 0.8;\nlet cosA = Math.cos(angle);\nlet sinA = Math.sin(angle);\nlet twistedX = x * cosA - y * sinA;\nlet twistedY = x * sinA + y * cosA;\nlet s1 = (twistedX - 1.0) * (twistedX - 1.0) + (twistedY) * (twistedY);\nlet s2 = (twistedX + 0.5) * (twistedX + 0.5) + (twistedY - 0.86) * (twistedY - 0.86);\nlet s3 = (twistedX + 0.5) * (twistedX + 0.5) + (twistedY + 0.86) * (twistedY + 0.86);\nlet radiusModifier = 0.1 + Math.sin(z * 2.0) * 0.05;\nlet field = (1.0 / (s1 + radiusModifier)) + (1.0 / (s2 + radiusModifier)) + (1.0 / (s3 + radiusModifier));\n\nreturn field;",
+        "name": "swirl",
+        "returnType": "I"
     }
 ];
 
@@ -300,21 +297,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initializeAndLoad() {
-        chrome.storage.local.get(['customFunctions', 'sharedJS', 'sharedGLSL'], (data) => {
+        chrome.storage.local.get(['customFunctions', 'sharedJS'], (data) => {
             if (data.customFunctions === undefined) {
                 chrome.storage.local.set({
                     customFunctions: initialFunctions,
-                    sharedJS: initialSharedJS,
-                    sharedGLSL: initialSharedGLSL
+                    sharedJS: initialSharedJS
                 }, () => {
                     sharedJS.value = initialSharedJS;
-                    sharedGLSL.value = initialSharedGLSL;
                     renderDynamicFormFields(1);
                     updateList();
                 });
             } else {
                 sharedJS.value = data.sharedJS !== undefined ? data.sharedJS : "";
-                sharedGLSL.value = data.sharedGLSL !== undefined ? data.sharedGLSL : "";
                 renderDynamicFormFields(1);
                 updateList();
             }
@@ -329,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fnReturnType.value = "I";
         renderDynamicFormFields(1);
         fnJs.value = '';
-        fnGlsl.value = '';
         nameLabel.textContent = "Function Name";
         addBtn.textContent = "Add Function";
         cancelBtn.style.display = "none";
@@ -393,7 +386,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     fnJs.value = fn.jsBody;
-                    fnGlsl.value = fn.glslBody || '';
                     
                     nameLabel.textContent = "Function Name (Edit Mode)";
                     addBtn.textContent = "Save Changes";
@@ -422,7 +414,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const name = fnName.value.trim().toLowerCase();
         const arity = parseInt(fnArity.value);
         const jsBody = fnJs.value.trim();
-        const glslBody = fnGlsl.value.trim();
 
         const nameRegex = /^[a-z][a-z0-9_]*$/;
         if (!nameRegex.test(name)) {
@@ -453,7 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 returnType,
                 derivatives,
                 jsBody,
-                glslBody,
                 enabled: true
             };
 
@@ -481,8 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveLibsBtn.addEventListener('click', () => {
         const js = sharedJS.value;
-        const glsl = sharedGLSL.value;
-        chrome.storage.local.set({ sharedJS: js, sharedGLSL: glsl }, () => {
+        chrome.storage.local.set({ sharedJS: js }, () => {
             showStatus(libsStatus, "Libraries saved successfully!");
         });
     });
