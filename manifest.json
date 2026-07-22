@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Desmos Custom Functions",
+  "version": "1.0",
+  "description": "Integrate custom functions into Desmos using JavaScript and GLSL.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://*.desmos.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {},
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["https://*.desmos.com/calculator*", "https://*.desmos.com/geometry*", "https://*.desmos.com/3d*"],
+      "js": ["isolated.js"],
+      "run_at": "document_start",
+      "world": "ISOLATED"
+    },
+    {
+      "matches": ["https://*.desmos.com/calculator*", "https://*.desmos.com/geometry*", "https://*.desmos.com/3d*"],
+      "js": ["main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ]
+}
